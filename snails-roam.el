@@ -6,11 +6,15 @@
 
 (defvar snails-roam-new-note-length 4)
 
-(defvar snails-roam-file-and-tags-query
-  [:select [file] :from tags])
+(defvar snails-roam-tag-alias '())
 
-(defvar snails-roam-all-files-query
-  [:select [file] :from tags :where file :is :not :null])
+(defvar snails-roam-file-and-tags-query
+  [:select :distinct [titles:file]
+           :from tags
+           :left :join titles
+           :on (= titles:file tags:file)
+           :where titles:title :is :not :null
+           ])
 
 (defun snails-roam--process-like (word)
   "add percentage around `word'"
@@ -18,13 +22,16 @@
   (format "%%%s%%" word)
   )
 
-(defun snails-roam-filter-by-tags (tag &rest tags)
+(defun snails-roam-filter-by-tags (tags)
   "generate query to filter files by tags"
   (interactive)
-  (let ((query `[:where (like tags '(,(snails-roam--process-like tag)))])
+  (let ((query)
         )
-    (dolist (x tags query)
-      (setq query (vconcat query `[:and (like tags '(,(snails-roam--process-like x)))]))
+    (dolist (x tags query) 
+      (let ((tag (or (cdr (assoc x snails-roam-tag-alias))  x))
+            )
+        (setq query (vconcat query `[:and (like tags:tags '(,(snails-roam--process-like tag)))]))        
+        )
       )    
     )
   )
@@ -35,7 +42,7 @@
   (let ((query)
         )
     (dolist (x (split-string input " ") query)
-      (setq query (vconcat query `[:and (like file ,(snails-roam--process-like x))]))
+      (setq query (vconcat query `[:and (like titles:title ,(snails-roam--process-like x))]))
       )    
     )
   )
@@ -43,10 +50,21 @@
 (defun snails-roam-generate-candidates (input query &optional len)
   "generate snails candidates"
   (when (or (not len) (> (length input) len)) 
-    (let ((res (org-roam-db-query (vconcat query
-                                           (snails-roam-filter-by-input input))))
-          file candidates
+    (let ((search-info (snails-roam-pick-tags-from-input input))
+          res file candidates
           )
+      (if search-info 
+          (setq res (org-roam-db-query
+                     (vconcat
+                      query
+                      (snails-roam-filter-by-tags (split-string (cadr search-info)))
+                      (snails-roam-filter-by-input (car search-info))
+                      )))
+        (setq res (org-roam-db-query
+                   (vconcat
+                    query
+                    (snails-roam-filter-by-input input))))
+        )
       (dolist (x res)
         (setq file (car x))
         (snails-add-candiate 'candidates (file-name-sans-extension (file-name-nondirectory file)) file)
@@ -55,6 +73,12 @@
       candidates)
     )
   )
+
+(defun snails-roam-pick-tags-from-input (input)
+  "get tags after separator symbol"
+  (when (string-match-p "," input)
+    (split-string input ",")
+    ))
 
 (snails-create-sync-backend
  :name
