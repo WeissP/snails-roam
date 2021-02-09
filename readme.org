@@ -1,0 +1,109 @@
+* usage
+** 1. write new backend
+*** 1.1 write new backend with custom tags
+**** define a query with tags
+
+#+begin_src elisp
+(defvar org-roam-focusing-query
+  (vconcat snails-roam-file-and-tags-query (snails-roam-filter-by-tags "focusing")))
+#+end_src
+
+=snails-roam-file-and-tags-query= is the template query, the default value is 
+
+#+begin_src elisp
+[:select [file] :from tags]
+#+end_src
+
+=snails-roam-filter-by-tags= generate the query to filter files by tags, you can also add multiple tags like
+
+#+begin_src elisp
+(snails-roam-filter-by-tags "focusing" "emacs" "org")
+#+end_src
+
+**** create snails backend
+#+begin_src elisp
+(snails-create-sync-backend
+ :name
+ "ORG-ROAM-FOCUSING"
+
+ :candidate-filter
+ (lambda (input)
+   (snails-roam-generate-candidates input org-roam-focusing-query -1)
+   )
+
+ :candidate-do
+ (lambda (candidate)
+   (find-file candidate)))
+#+end_src
+
+=snails-roam-generate-candidates= receives three parameters:
+1. the *input* in the snails
+   
+   add space to search multiple keywords is also supported
+2. the *query* you defined before
+3. the minimum *length*
+
+   This backend start to search contents only when the input length > the minimum =length=.
+
+*** 1.2 write new backend to search all notes
+
+you can use =snails-roam-all-files-query= to create the backend that contains all notes.
+
+#+begin_src elisp
+(snails-create-sync-backend
+ :name
+ "ORG-ROAM-ALL"
+
+ :candidate-filter
+ (lambda (input)
+   (snails-roam-generate-candidates input snails-roam-all-files-query 3)
+   )
+
+ :candidate-do
+ (lambda (candidate)
+   (find-file candidate)))
+#+end_src
+
+*** 1.3 example
+#+begin_src elisp
+  ;; org-roam
+  ;;; Require
+  (require 'snails-core)
+  (require 'org-roam)
+  (require 'snails-roam)
+
+  ;;; Code:
+  (defvar org-roam-focusing-query
+    (vconcat snails-roam-file-and-tags-query (snails-roam-filter-by-tags "focusing")))
+
+  (snails-create-sync-backend
+   :name
+   "ORG-ROAM-FOCUSING"
+
+   :candidate-filter
+   (lambda (input)
+     (snails-roam-generate-candidates input org-roam-focusing-query -1)
+     )
+
+   :candidate-do
+   (lambda (candidate)
+     (find-file candidate)))
+
+  (snails-create-sync-backend
+   :name
+   "ORG-ROAM-ALL"
+
+   :candidate-filter
+   (lambda (input)
+     (snails-roam-generate-candidates input snails-roam-all-files-query 3)
+     )
+
+   :candidate-do
+   (lambda (candidate)
+     (weiss-roam-find-file candidate)))
+
+  (provide 'snails-backend-org-roam)
+#+end_src
+** 2. create new note
+
+=snails-roam= also provides backend =snails-backend-org-roam-new= so that you can create new note with roam capture templates, you can modify the minimum length by =snails-roam-new-note-length=.

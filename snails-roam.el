@@ -4,8 +4,13 @@
 (require 'org-roam)
 (require 'snails-core)
 
+(defvar snails-roam-new-note-length 4)
+
 (defvar snails-roam-file-and-tags-query
   [:select [file] :from tags])
+
+(defvar snails-roam-all-files-query
+  [:select [file] :from tags :where file :is :not :null])
 
 (defun snails-roam--process-like (word)
   "add percentage around `word'"
@@ -50,5 +55,23 @@
       candidates)
     )
   )
+
+(snails-create-sync-backend
+ :name
+ "ORG-ROAM-NEW"
+
+ :candidate-filter
+ (lambda (input)
+   (when (> (length input) snails-roam-new-note-length)
+     (let ((candidates)
+           )
+       (snails-add-candiate 'candidates input input)       
+       )
+     )
+   )
+
+ :candidate-do
+ (lambda (candidate)
+   (org-roam-find-file candidate nil nil t)))
 
 (provide 'snails-roam)
