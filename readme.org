@@ -1,24 +1,54 @@
+* why snails-roam?
+
+1. [[https://github.com/manateelazycat/snails][Snails]] support multiple backends, so you can search roam notes in multiple backends(i.e. each backend filter notes by some different tags).
+2. One file will always only be displayed as one candidate, but you can also search content that defined in the =roam_alias=!
+3. you can add comma before string to filter notes by tag 
+
+[[https://user-images.githubusercontent.com/38898031/107433542-bfc32300-6b29-11eb-837a-4a976ab5fef7.png]]
+[[https://user-images.githubusercontent.com/38898031/107434745-7378e280-6b2b-11eb-824d-9bffe943f8e9.png]]
 * usage
 ** 1. write new backend
-*** 1.1 write new backend with custom tags
+*** 1.1 write new backend to search all notes
+
+you can use =snails-roam-file-and-tags-query= to create the backend that contains all notes.
+
+#+begin_src elisp
+(snails-create-sync-backend
+ :name
+ "ORG-ROAM-ALL"
+
+ :candidate-filter
+ (lambda (input)
+   (snails-roam-generate-candidates input snails-roam-file-and-tags-query 3)
+   )
+
+ :candidate-do
+ (lambda (candidate)
+   (find-file candidate)))
+#+end_src
+
+=snails-roam-generate-candidates= receives three parameters:
+1. the *input* in the snails
+   
+  - add space to search multiple keywords is also supported
+
+  - all strings after comma will be processed as tags(add space to separate multiple tags)
+   
+2. the *query* that you want search in the datebase
+3. the minimum *length*
+
+   This backend start to search contents only when the input length > the minimum =length=.
+
+*** 1.2 write new backend with custom tags
 **** define a query with tags
+
+you can add tags filter based on =snails-roam-file-and-tags-query=
 
 #+begin_src elisp
 (defvar org-roam-focusing-query
-  (vconcat snails-roam-file-and-tags-query (snails-roam-filter-by-tags "focusing")))
+  (vconcat snails-roam-file-and-tags-query (snails-roam-filter-by-tags '("focusing" "emacs"))))
 #+end_src
 
-=snails-roam-file-and-tags-query= is the template query, the default value is 
-
-#+begin_src elisp
-[:select [file] :from tags]
-#+end_src
-
-=snails-roam-filter-by-tags= generate the query to filter files by tags, you can also add multiple tags like
-
-#+begin_src elisp
-(snails-roam-filter-by-tags "focusing" "emacs" "org")
-#+end_src
 
 **** create snails backend
 #+begin_src elisp
@@ -36,45 +66,17 @@
    (find-file candidate)))
 #+end_src
 
-=snails-roam-generate-candidates= receives three parameters:
-1. the *input* in the snails
-   
-   add space to search multiple keywords is also supported
-2. the *query* you defined before
-3. the minimum *length*
-
-   This backend start to search contents only when the input length > the minimum =length=.
-
-*** 1.2 write new backend to search all notes
-
-you can use =snails-roam-all-files-query= to create the backend that contains all notes.
-
-#+begin_src elisp
-(snails-create-sync-backend
- :name
- "ORG-ROAM-ALL"
-
- :candidate-filter
- (lambda (input)
-   (snails-roam-generate-candidates input snails-roam-all-files-query 3)
-   )
-
- :candidate-do
- (lambda (candidate)
-   (find-file candidate)))
-#+end_src
-
 *** 1.3 example
 #+begin_src elisp
   ;; org-roam
-  ;;; Require
+    ;;; Require
   (require 'snails-core)
   (require 'org-roam)
   (require 'snails-roam)
 
-  ;;; Code:
+    ;;; Code:
   (defvar org-roam-focusing-query
-    (vconcat snails-roam-file-and-tags-query (snails-roam-filter-by-tags "focusing")))
+    (vconcat snails-roam-file-and-tags-query (snails-roam-filter-by-tags '("focusing" "emacs"))))
 
   (snails-create-sync-backend
    :name
@@ -95,7 +97,7 @@ you can use =snails-roam-all-files-query= to create the backend that contains al
 
    :candidate-filter
    (lambda (input)
-     (snails-roam-generate-candidates input snails-roam-all-files-query 3)
+     (snails-roam-generate-candidates input snails-roam-file-and-tags-query 3)
      )
 
    :candidate-do
