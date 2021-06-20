@@ -1,5 +1,17 @@
-;;; snails-roam.el
-;;; -*- lexical-binding: t -*-
+;;; snails-roam.el --- add roam support in snails  -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2010-2021 WeissP
+
+;; Author: WeissP <kingbaiing@163.com>
+;; Maintainer: WeissP <kingbaiing@163.com>
+;; Created: 20 juni 2021
+;; Keywords: org-roam snails
+
+;; This file is not part of GNU Emacs.
+
+;; This file is free software…
+
+;; along with this file.  If not, see <https://www.gnu.org/licenses/>.
 
 (require 'org-roam)
 (require 'snails-core)
