@@ -1,5 +1,3 @@
-;;; snails-roam.el --- add roam support in snails  -*- lexical-binding: t; -*-
-
 ;; Copyright (C) 2010-2021 WeissP
 
 ;; Author: WeissP <kingbaiing@163.com>
