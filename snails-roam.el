@@ -30,20 +30,29 @@
 
 (defvar snails-roam-tag-subquery-name "filterd_id")
 
-(defun snails-roam--process-like (word)
+(defun snails-roam--process-like (word &optional times)
   "add percentage around `word'"
   (interactive)
-  (format "%%%s%%" word))
+  (unless times (setq times 1))
+  (if (<= times 0)
+      word
+    (format "%%%s%%" (snails-roam--process-like word (1- times)))))
 
 (defun snails-roam-filter-by-tags (tags)
   "generate query to filter files by tags"
   (interactive)
+  ;; tag example: '"link"'
   (concat snails-roam-tags-query
           (mapconcat
            (lambda (x)
-             (format "AND tags.node_id in (%s AND tags.tag = '\"%s\"')" snails-roam-tags-query x))
+             (format "AND tags.node_id in (%s AND tags.tag like '\"%s\"')" snails-roam-tags-query
+                     (snails-roam--process-like x 2)))
            tags " ")))
 
+
+(setq wt (org-roam-node-create :id 1 :file "fd" :properties "j"))
+
+;; (cl-struct-slot-value 'org-roam-node 'tags wt)
 
 (defun snails-roam-wrap-subquery (subquery query-name)
   "DOCSTRING"
@@ -54,37 +63,69 @@
   "generate query to filter files by input"
   (interactive)
   (mapconcat
-   (lambda (x) (format "AND nodes.file LIKE '%%%%%s%%%%'" x))
+   (lambda (x)
+     (format "AND (nodes.file LIKE '%s' or aliases.alias LIKE '%s')"
+             (snails-roam--process-like x 2)
+             (snails-roam--process-like x 2)))
    (split-string input " ")
    " "))
 
 (defun snails-roam-generate-candidates (input tags &optional len)
   "generate snails candidates"
   (when (or (not len) (> (length input) len))
-    (let ((tags
-           (append tags (snails-roam-pick-tags-from-input input)))
-          res file candidates)
-      (setq res
+    (let* ((search-info (snails-roam-processing-input input))
+           (input (car search-info))
+           (tags (append tags (cdr search-info)))
+           res file candidates
+           (rows
             (org-roam-db-query
-             (format "%s select distinct nodes.file from nodes, %s where nodes.id in %s %s"
+             (format "%s select distinct nodes.file, nodes.pos, nodes.properties from %s left join aliases on aliases.node_id = %s.node_id left join nodes on nodes.id = %s.node_id where 0=0 %s"
                      (snails-roam-wrap-subquery
                       (snails-roam-filter-by-tags tags)
                       snails-roam-tag-subquery-name)
                      snails-roam-tag-subquery-name
                      snails-roam-tag-subquery-name
+                     snails-roam-tag-subquery-name
                      (snails-roam-filter-by-input input))))
-      (dolist (x res)
-        (setq file (car x))
+           (nodes-info
+            (mapcar
+             (lambda (row)
+               (pcase-let* ((`(,file ,pos ,properties)
+                             row))
+                 `(,file .
+                         ,(format
+                           "'((file . \"%s\") (point . %s) (link . %s)) " file pos
+                           (when-let ((node-link
+                                       (cdr (assoc "ROAM_REFS" properties))))
+                             (format "\"%s\"" node-link))))))
+             rows)))
+      ;; (message "tags: %s parse:%s" tags
+      ;;          (snails-roam-pick-tags-from-input input))
+      ;; (message "input: %s" input)
+      (dolist (node-info nodes-info)
         (snails-add-candiate 'candidates
                              (file-name-sans-extension
-                              (file-name-nondirectory file))
-                             file))
-      (snails-sort-candidates input candidates 0 0)
+                              (file-name-nondirectory
+                               (car node-info)))
+                             (cdr node-info)))
       candidates)))
 
-(defun snails-roam-pick-tags-from-input (input)
+(defun snails-roam-find-file (node &optional follow-file-path)
+  "DOCSTRING"
+  (interactive)
+  (let ((alist (weiss-read-from-string node)))
+    (if-let ((link (cdr (assoc 'link alist)))
+             (_ (not follow-file-path)))
+        (browse-url link)
+      (find-file (cdr (assoc 'file alist))))))
+
+(defun snails-roam-processing-input (input)
   "get tags after separator symbol"
-  (when (string-match-p "," input) (split-string input ",")))
+  (if (string-match-p "," input)
+      (let ((info (split-string input ","))
+            )
+        (cons (car info) (split-string (nth 1 info) " ")))
+    `(,input)))
 
 (snails-create-sync-backend
  :name "ORG-ROAM-NEW"
@@ -96,6 +137,11 @@
                              )
                          (snails-add-candiate 'candidates input input))))
 
- :candidate-do (lambda (candidate) (org-roam-find-file candidate nil nil t)))
+ :candidate-do (lambda
+                 (candidate)
+                 (org-roam-capture-
+                  :node (org-roam-node-create :file candidate)
+                  :props '(:finalize find-file))
+                 ))
 
 (provide 'snails-roam)
