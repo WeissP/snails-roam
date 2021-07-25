@@ -49,11 +49,6 @@
                      (snails-roam--process-like x 2)))
            tags " ")))
 
-
-(setq wt (org-roam-node-create :id 1 :file "fd" :properties "j"))
-
-;; (cl-struct-slot-value 'org-roam-node 'tags wt)
-
 (defun snails-roam-wrap-subquery (subquery query-name)
   "DOCSTRING"
   (interactive)
@@ -64,7 +59,8 @@
   (interactive)
   (mapconcat
    (lambda (x)
-     (format "AND (nodes.file LIKE '%s' or aliases.alias LIKE '%s')"
+     (format "AND (nodes.file LIKE '\"%s/%s' or aliases.alias LIKE '%s')"
+             org-roam-directory
              (snails-roam--process-like x 2)
              (snails-roam--process-like x 2)))
    (split-string input " ")
