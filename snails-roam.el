@@ -59,8 +59,8 @@
   (interactive)
   (mapconcat
    (lambda (x)
-     (format "AND (nodes.file LIKE '\"%s/%s' or aliases.alias LIKE '%s')"
-             org-roam-directory
+     (format "AND (nodes.title LIKE '%s' or aliases.alias LIKE '%s')"
+             ;; org-roam-directory
              (snails-roam--process-like x 2)
              (snails-roam--process-like x 2)))
    (split-string input " ")
@@ -75,7 +75,7 @@
            res file candidates
            (rows
             (org-roam-db-query
-             (format "%s select distinct nodes.file, nodes.pos, nodes.properties from %s left join aliases on aliases.node_id = %s.node_id left join nodes on nodes.id = %s.node_id where 0=0 %s"
+             (format "%s select distinct nodes.file, nodes.title, nodes.pos, nodes.properties from %s left join aliases on aliases.node_id = %s.node_id left join nodes on nodes.id = %s.node_id where 0=0 %s"
                      (snails-roam-wrap-subquery
                       (snails-roam-filter-by-tags tags)
                       snails-roam-tag-subquery-name)
@@ -86,23 +86,25 @@
            (nodes-info
             (mapcar
              (lambda (row)
-               (pcase-let* ((`(,file ,pos ,properties)
+               (pcase-let* ((`(,file ,title ,pos ,properties)
                              row))
-                 `(,file .
-                         ,(format
-                           "'((file . \"%s\") (point . %s) (link . %s)) " file pos
-                           (when-let ((node-link
-                                       (cdr (assoc "ROAM_REFS" properties))))
-                             (format "\"%s\"" node-link))))))
+                 `(,(if (> pos 1)
+                        (format "%s ⮨ %s"
+                                title
+                                (file-name-sans-extension
+                                 (file-name-nondirectory file)))
+                      (file-name-sans-extension
+                       (file-name-nondirectory file)))
+                   .
+                   ,(format
+                     "'((file . \"%s\") (point . %s) (link . %s)) " file pos
+                     (when-let ((node-link
+                                 (cdr (assoc "ROAM_REFS" properties))))
+                       (format "\"%s\"" node-link))))))
              rows)))
-      ;; (message "tags: %s parse:%s" tags
-      ;;          (snails-roam-pick-tags-from-input input))
-      ;; (message "input: %s" input)
       (dolist (node-info nodes-info)
         (snails-add-candiate 'candidates
-                             (file-name-sans-extension
-                              (file-name-nondirectory
-                               (car node-info)))
+                             (car node-info)
                              (cdr node-info)))
       candidates)))
 
@@ -136,7 +138,7 @@
  :candidate-do (lambda
                  (candidate)
                  (org-roam-capture-
-                  :node (org-roam-node-create :file candidate)
+                  :node (org-roam-node-create :title candidate)
                   :props '(:finalize find-file))
                  ))
 
